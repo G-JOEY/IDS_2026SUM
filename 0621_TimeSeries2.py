@@ -1,3 +1,7 @@
+# TimeSeries2 Code
+# 시계열 연속성을 완벽히 유지하면서도, 공격 데이터 비율이 정확히 20% ~ 40% 사이인 안정적인 시퀀스 구간만 필터링하여 학습
+
+
 import os
 import random
 import numpy as np
@@ -18,7 +22,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # ==========================================
-# 1. NIDS 시계열 환경 (Train / Test 모드 분리)
+# 1. NIDS 시계열 환경
 # ==========================================
 class NIDSEnv(gym.Env):
     def __init__(self, X_data, y_data, max_steps=1000, window_size=3, is_test=False):
@@ -127,7 +131,7 @@ class StandardQNetwork(nn.Module):
         return self.network(x)
 
 # ==========================================
-# 3. 에이전트 (이원화 리플레이 버퍼 및 테스트 모드 전환 지원)
+# 3. 에이전트
 # ==========================================
 class DQNAgent:
     def __init__(self, state_dim, action_dim, is_test=False):
@@ -231,7 +235,7 @@ def load_and_split_data(file_path):
     y = df['Label'].apply(lambda x: 0 if str(x).strip() == 'Benign' else 1).values.astype(np.int8)
     del df
     
-    # 모든 피처 강제 숫자 형변환 처리 (헤더 문자열 노이즈 제거 포함)
+    # 모든 피처 강제 숫자 형변환 처리
     for col in X_raw.columns:
         X_raw[col] = pd.to_numeric(X_raw[col], errors='coerce')
         
@@ -252,7 +256,7 @@ def load_and_split_data(file_path):
     max_float32 = np.finfo(np.float32).max * 0.9
     np.clip(X_log, a_min=None, a_max=max_float32, out=X_log)
     
-    # 💡 시계열의 연속성이 끊어지지 않도록 셔플 없이 앞부분 80%는 Train, 뒷부분 20%는 Test로 순차 슬라이싱
+    # 시계열의 연속성이 끊어지지 않도록 셔플 없이 앞부분 80%는 Train, 뒷부분 20%는 Test로 순차 슬라이싱
     print("시계열 데이터 순차 분할(Sequential Split) 진행 중...")
     split_idx = int(len(X_log) * 0.8)
     
@@ -262,8 +266,7 @@ def load_and_split_data(file_path):
     y_test = y[split_idx:]
     del X_log
     
-    # 데이터 누수 차단 스케일러 적용
-    print("데이터 스케일링 진행 중 (누수 방지)...")
+    print("데이터 스케일링 진행 중...")
     scaler = MinMaxScaler()
     X_train_scaled = scaler.fit_transform(X_train_raw)
     X_test_scaled = scaler.transform(X_test_raw)
@@ -279,10 +282,10 @@ def load_and_split_data(file_path):
 if __name__ == "__main__":
     clean_file_path = r"C:\ids2018_data\nids_advanced_cleaned.csv"
     
-    # 1. 데이터 로드 및 전처리 분리
+    # 데이터 로드 및 전처리 분리
     X_train, X_test, y_train, y_test = load_and_split_data(clean_file_path)
     
-    # 2. Train용 환경 및 에이전트 생성
+    # Train용 환경 및 에이전트 생성
     train_env = NIDSEnv(X_train, y_train, max_steps=1000, window_size=3, is_test=False)
     agent = DQNAgent(state_dim=train_env.observation_space.shape[0], action_dim=train_env.action_space.n, is_test=False)
     
@@ -396,7 +399,7 @@ if __name__ == "__main__":
     print("=========================================")
 
     # ------------------------------------------
-    # 6. 결과 시각화 그래프 출력 (학습 기록 기반 선 그래프 3단 구성)
+    # 6. 결과 시각화 그래프 출력
     # ------------------------------------------
     plt.figure(figsize=(18, 5))
 

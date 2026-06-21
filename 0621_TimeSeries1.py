@@ -1,3 +1,10 @@
+# TimeSeries1 Code
+# 슬라이딩 윈도우 기반의 시계열 상태 구성: window_size=3 패치를 도입해서 현재 패킷을 포함하여 연속된 3개의 패킷 데이터를 하나로 묶어 모델의 입력으로 사용
+# 시계열 데이터의 연속성이 깨지는 것을 막기 위해 셔플링 없이 앞쪽 80%를 학습셋, 뒤쪽 20%를 테스트셋으로 순차 분할
+# 에이전트 내부에 memory_benign과 memory_attack이라는 두 개의 독립된 버퍼: 학습 단계에서 각각 32개씩 샘플링하여 학습시킴
+# 연속된 구간을 통째로 잘라서 사용: 학습 시 최소 5% 이상의 공격 데이터가 섞여 있는 연속 구간을 탐색하여 사용, 테스트 시에는 데이터 왜곡 없이 자연 분포를 유지한 구간을 사용
+
+
 import os
 import random
 import numpy as np
@@ -19,7 +26,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # ==========================================
-# 1. NIDS 시계열 환경 (Train / Test 모드 지원)
+# 1. NIDS 시계열 환경
 # ==========================================
 class NIDSEnv(gym.Env):
     def __init__(self, X_data, y_data, max_steps=1000, window_size=3, is_test=False):
@@ -128,7 +135,7 @@ class StandardQNetwork(nn.Module):
         return self.network(x)
 
 # ==========================================
-# 3. 에이전트 (이원화 리플레이 버퍼 및 테스트 모드 지원)
+# 3. 에이전트
 # ==========================================
 class DQNAgent:
     def __init__(self, state_dim, action_dim, is_test=False):
@@ -214,7 +221,7 @@ class DQNAgent:
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
 # ==========================================
-# 4. 고도화된 통합 데이터 가공 및 시계열 분할 분리
+# 4. 통합 데이터 가공 및 시계열 분할 분리
 # ==========================================
 def load_and_split_data(file_path):
     if not os.path.exists(file_path):
@@ -258,7 +265,7 @@ def load_and_split_data(file_path):
     max_float32 = np.finfo(np.float32).max * 0.9
     np.clip(X_log, a_min=None, a_max=max_float32, out=X_log)
     
-    # 💡 중요: 시계열 연속성을 유지하기 위해 셔플링(shuffle=False) 없이 순차 분할 (Train 80% / Test 20%)
+    # 시계열 연속성을 유지하기 위해 셔플링(shuffle=False) 없이 순차 분할 (Train 80% / Test 20%)
     print("시계열 데이터 순차적(Train/Test) 8:2 분리 진행 중...")
     split_idx = int(len(X_log) * 0.8)
     
@@ -268,8 +275,7 @@ def load_and_split_data(file_path):
     y_test = y[split_idx:]
     del X_log
     
-    # 데이터 누수 차단 스케일링
-    print("데이터 스케일링 진행 중 (누수 방지)...")
+    print("데이터 스케일링 진행 중...")
     scaler = MinMaxScaler()
     X_train_scaled = scaler.fit_transform(X_train_raw)
     X_test_scaled = scaler.transform(X_test_raw)
@@ -285,10 +291,10 @@ def load_and_split_data(file_path):
 if __name__ == "__main__":
     clean_file_path = r"C:\ids2018_data\nids_advanced_cleaned.csv"
     
-    # 1. 시계열 전처리 및 분리 함수 호출
+    # 시계열 전처리 및 분리 함수 호출
     X_train, X_test, y_train, y_test = load_and_split_data(clean_file_path)
     
-    # 2. 환경 및 에이전트 인스턴스 생성
+    # 환경 및 에이전트 인스턴스 생성
     train_env = NIDSEnv(X_train, y_train, max_steps=1000, window_size=3, is_test=False)
     agent = DQNAgent(state_dim=train_env.observation_space.shape[0], action_dim=train_env.action_space.n, is_test=False)
     

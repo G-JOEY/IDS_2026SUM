@@ -1,3 +1,11 @@
+# FeatureSelection1 Code
+# Two-Stage Feature Selection Pipeline
+# 1단계: 분산 기준 필터링
+# 값이 거의 변하지 않는(분산<0.01) 무의미한 피처를 탈락시킴: 학습 데이터셋 기준
+# 2단계: 다중공선성 제거(상관관계 필터링)
+# 1단계를 통과한 피처 중 피처 간의 상관관계가 0.95를 초과하는 피처들을 찾아내어 하나만 남기고 삭제: 학습 데이터셋 기준
+
+
 import os
 import random
 import numpy as np
@@ -12,7 +20,7 @@ import gymnasium as gym
 from gymnasium import spaces
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.feature_selection import VarianceThreshold  # 분산 필터링용
+from sklearn.feature_selection import VarianceThreshold
 import matplotlib.pyplot as plt
 
 # GPU 설정
@@ -20,7 +28,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # ==========================================
-# 1. NIDS 강화학습 환경 (Train / Test 모드 분리)
+# 1. NIDS 강화학습 환경
 # ==========================================
 class NIDSEnv(gym.Env):
     def __init__(self, X_data, y_data, max_steps=1000, is_test=False):
@@ -108,7 +116,7 @@ class StandardQNetwork(nn.Module):
         return self.network(x)
 
 # ==========================================
-# 3. 에이전트 (평가 모드 완벽 분리 지원)
+# 3. 에이전트
 # ==========================================
 class DQNAgent:
     def __init__(self, state_dim, action_dim, is_test=False):
@@ -181,7 +189,7 @@ class DQNAgent:
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
 # ==========================================
-# 4. 고도화된 통합 데이터 가공 및 누수 차단 특성 선택
+# 4. 통합 데이터 가공 및 누수 차단 특성 선택
 # ==========================================
 def load_and_split_data(file_path):
     if not os.path.exists(file_path):
@@ -217,15 +225,14 @@ def load_and_split_data(file_path):
     )
     del X_log
     
-    # 데이터 누수 차단 스케일러 반영
-    print("데이터 스케일링 진행 중 (누수 방지)...")
+    print("데이터 스케일링 진행 중...")
     scaler = MinMaxScaler()
     X_train_scaled = scaler.fit_transform(X_train_raw)
     X_test_scaled = scaler.transform(X_test_raw)
     del X_train_raw, X_test_raw
 
     # -------------------------------------------------------------
-    # [Feature Selection - 데이터 누수 없는 필터 적용]
+    # [Feature Selection]
     # -------------------------------------------------------------
     orig_feature_count = X_train_scaled.shape[1]
     print(f"특성 선택 시작 (원본 특성 수: {orig_feature_count}개)")
@@ -235,7 +242,7 @@ def load_and_split_data(file_path):
     selector = VarianceThreshold(threshold=var_thresh)
     
     X_train_var = selector.fit_transform(X_train_scaled)
-    X_test_var = selector.transform(X_test_scaled) # Test는 통계치 유출 없이 변환만!
+    X_test_var = selector.transform(X_test_scaled) # Test는 통계치 유출 없이 변환만
     
     remaining_indices = selector.get_support(indices=True)
     df_train_filtered = pd.DataFrame(X_train_var, columns=remaining_indices)
@@ -267,10 +274,10 @@ def load_and_split_data(file_path):
 if __name__ == "__main__":
     clean_file_path = r"C:\ids2018_data\nids_advanced_cleaned.csv"
     
-    # 1. 고도화 전처리 함수 실행 (누수 없이 피처 셀렉션 차단 가동)
+    # 고도화 전처리 함수 실행 (누수 없이 피처 셀렉션 차단 가동)
     X_train, X_test, y_train, y_test = load_and_split_data(clean_file_path)
     
-    # 2. Train용 환경 및 에이전트 초기화
+    # Train용 환경 및 에이전트 초기화
     train_env = NIDSEnv(X_train, y_train, max_steps=1000, is_test=False)
     agent = DQNAgent(state_dim=train_env.observation_space.shape[0], action_dim=train_env.action_space.n, is_test=False)
     
@@ -322,7 +329,6 @@ if __name__ == "__main__":
         history_fpr.append(fpr)
         history_fnr.append(fnr)
         
-        # 이전 출력 레이아웃 유지 수정
         if (episode + 1) % 5 == 0 or episode == 0:
             print(f"에피 {episode+1:3d}/{num_train_episodes} | "
                   f"보상: {episode_reward:7.1f} | "

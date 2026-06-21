@@ -1,3 +1,10 @@
+# FeatureSelection2 Code
+# RFECV(재귀적 특성 제거 및 교차 검증)를 통한 최적 피처 개수 자동 탐색
+# ExtraTreesClassifier를 평가 엔진으로 삼아 피처를 하나씩 제거하며 성능을 평가
+# 3-Fold 교차 검증을 수행하면서 최고의 정확도를 내는 최적의 특성 개수를 AI가 스스로 찾아내어 선택
+# 격리 서브 샘플링: 오직 학습셋(y_train) 내부 영역에서만 최대 30,000개의 샘플을 무작위 추출하여 RFECV를 학습시킴
+
+
 import os
 import random
 import numpy as np
@@ -21,7 +28,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using device: {device}")
 
 # ==========================================
-# 1. NIDS 강화학습 환경 (Train / Test 모드 분리)
+# 1. NIDS 강화학습 환경
 # ==========================================
 class NIDSEnv(gym.Env):
     def __init__(self, X_data, y_data, max_steps=1000, is_test=False):
@@ -161,7 +168,7 @@ class DQNAgent:
 
 
 # ==========================================
-# 4. 고도화된 통합 데이터 가공 및 누수 차단 RFECV 검증
+# 4. 통합 데이터 가공 및 누수 차단 RFECV 검증
 # ==========================================
 def load_and_split_data(file_path):
     if not os.path.exists(file_path):
@@ -175,7 +182,7 @@ def load_and_split_data(file_path):
     y = df['Label'].apply(lambda x: 0 if str(x).strip() == 'Benign' else 1).values.astype(np.int8)
     del df
     
-    # [안전장치] inf 및 NaN 정제
+    # inf 및 NaN 정제
     X_np = X.to_numpy(dtype=np.float32)
     X_np[np.isinf(X_np)] = np.nan
     col_means = np.nanmean(X_np, axis=0)
@@ -197,8 +204,7 @@ def load_and_split_data(file_path):
     )
     del X_log
     
-    # 데이터 누수 유출 없는 독립 스케일러 연산
-    print("데이터 스케일링 진행 중 (누수 방지)...")
+    print("데이터 스케일링 진행 중...")
     scaler = MinMaxScaler()
     X_train_scaled = scaler.fit_transform(X_train_raw)
     X_test_scaled = scaler.transform(X_test_raw)
@@ -223,7 +229,7 @@ def load_and_split_data(file_path):
     
     # 최적의 특성 선택 마스크 획득 및 격리 마스킹 처리
     X_train_final = X_train_scaled[:, rfecv.support_]
-    X_test_final = X_test_scaled[:, rfecv.support_] # Test 데이터는 변환 정보 교류 없이 차단 마스킹만 수용!
+    X_test_final = X_test_scaled[:, rfecv.support_] # Test 데이터는 변환 정보 교류 없이 차단 마스킹만 수용
     
     print(f"-> [결과] AI가 찾아낸 최적의 특성 개수: {rfecv.n_features_}개")
     print(f"-> 최종 신경망 입력 피처 결정 완료: {orig_feature_count}개 -> {X_train_final.shape[1]}개")
@@ -240,10 +246,10 @@ def load_and_split_data(file_path):
 if __name__ == "__main__":
     clean_file_path = r"C:\ids2018_data\nids_advanced_cleaned.csv"
     
-    # 1. 고도화 데이터 로드 가동 (누수 차단 RFECV 탑재)
+    # 고도화 데이터 로드 가동
     X_train, X_test, y_train, y_test = load_and_split_data(clean_file_path)
     
-    # 2. Train용 환경 및 에이전트 인스턴스 빌드
+    # Train용 환경 및 에이전트 인스턴스 빌드
     train_env = NIDSEnv(X_train, y_train, max_steps=1000, is_test=False)
     agent = DQNAgent(state_dim=train_env.final_n_features, action_dim=train_env.action_space.n, is_test=False)
     
@@ -291,7 +297,6 @@ if __name__ == "__main__":
         history_fpr.append(fpr)
         history_fnr.append(fnr)
         
-        # 프린트 서식 로그 동기화 일치
         if (episode + 1) % 5 == 0 or episode == 0:
             print(f"에피 {episode+1:3d}/{num_train_episodes} | "
                   f"보상: {episode_reward:7.1f} | "
@@ -349,7 +354,7 @@ if __name__ == "__main__":
     print("=========================================")
 
     # ------------------------------------------
-    # 6. 결과 시각화 그래프 출력 (학습 추이 선형 3단 구성 그래프)
+    # 6. 결과 시각화 그래프 출력
     # ------------------------------------------
     plt.figure(figsize=(18, 5))
 

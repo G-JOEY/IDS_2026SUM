@@ -1,3 +1,14 @@
+# Base DQN Code
+# Action: 0(Benign), 1(Attack)
+# Reward: +1.0 / -5.0(미탐: Attack을 Benign으로 분류) / -1.0(오탐: Benign을 Attack으로 분류)
+# 학습 시 클래스 불균형 문제를 해결하기 위해 정상과 공격 데이터를 항상 50:50 균등 추출
+# 4개 층의 MLP 구조를 가진 심층 신경망을 이용하여 Q-value를 예측하고 학습
+# Focal Loss: 단순 MSE Loss가 아닌, 어려운 샘플에 가중치를 주는 방법
+# Soft Update, epsilon-greedy
+# 문자열 레이블 정수 변환, 결측치/무한대 값 처리, log1p 스케일링 후 MinMaxScaler를 적용해 정규화
+# Train/Test 셋 분할 시 원본 데이터의 클래스 비율을 유지
+
+
 import os
 import random
 import numpy as np
