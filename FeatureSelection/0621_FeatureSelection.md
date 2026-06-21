@@ -8,20 +8,19 @@ $s_t = [x_1, x_2, ..., x_n]$
 - $x_i \in [0, 1]$ (normalized)
 
 ## Action
-$a_t \in \{0, 1\}$
+$a_t \in \{0,1\}$
 - 0: Benign
 - 1: Attack
 
 ## Reward
-$
-\[R_t(s_t, a_t) =
+$$
+R_t(s_t, a_t) =
 \begin{cases}
 +1, & a_t = y_t \\
--5, & a_t = 0, \; y_t = 1 \\
--1, & a_t = 1, \; y_t = 1
+-5, & a_t = 0, \ y_t = 1 \\
+-1, & a_t = 1, \ y_t = 1
 \end{cases}
-\]
-$
+$$
 - $a_t$: 예측, $y_t$: 정답
 - 미탐 시 -5, 오탐 시 -1
 
@@ -38,7 +37,7 @@ $Q(s_t, a_t) = Q_{\theta}(s_t, a_t)$
 $Q(s_{t+1}, a_{t+1}) = \max_{a'}Q_{\theta^-}(s_{t+1}, a_{t+1})$
 
 ### Target Q-Value
-$y_t = r_t + \gamma\max_{a'}Q_{\theta^-}(s_{t+1}, a_{t+1})(1-d_t)$
+$y_t = r_t + \gamma\max_{a'}Q(s_{t+1}, a_{t+1})(1-d_t)$
 - $d_t$: Done flag, $d_t \in \{0, 1\}$
 
 ### Loss
@@ -49,7 +48,7 @@ $\delta_t = |Q_{\theta}(s_t, a_t) - y_t|$
 $w_t = (1-e^{-\delta_t})^{\gamma_f}$
 
 #### Loss
-$Loss = \frac{1}{N}\sum^N_{i=1}w_i(Q_{\theta}(s_t, a_t) - y_t)^2$
+$Loss = \frac{1}{N}\sum^N_{i=1}w_i(Q(s_t, a_t) - y_t)^2$
 
 ## Hyperparameters
 |Hyperparameter|Value|
