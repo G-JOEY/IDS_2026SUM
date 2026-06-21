@@ -105,3 +105,5 @@ $Loss = \frac{1}{N}\sum^N_{i=1}w_i(Q(s_t, a_t) - y_t)^2$
     rfecv = RFECV(estimator=base_estimator, step=5, cv=3, scoring='accuracy', n_jobs=-1)
     rfecv.fit(X_train_scaled[sample_indices], y_train[sample_indices])
 ```
+
+## 실험결과
